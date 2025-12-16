@@ -1,9 +1,11 @@
-
+python-dotenv
 langchain
 langchain-community
 langchain-huggingface
-langchain-openai
 chromadb
 sentence-transformers
 pypdf
-python-dotenv
+torch
+transformers
+huggingface-hub
+
