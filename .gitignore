@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+.env
+.venv/
+venv/
+
+# Vector DB
+chroma_db/
+
+# PDFs (optional)
+data/pdfs/*.pdf
+
+# OS
+.DS_Store
