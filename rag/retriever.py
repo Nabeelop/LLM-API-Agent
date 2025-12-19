@@ -1,48 +1,31 @@
-from langchain.retrievers import MultiQueryRetriever
-from langchain.prompts import PromptTemplate
-from langchain.schema import Document
+from langchain_core.documents import Document
+from typing import List
 
 
-API_QUERY_PROMPT = PromptTemplate(
-    input_variables=["question"],
-    template="""
-You are an expert API documentation assistant.
-
-Given a user question, generate multiple focused search queries
-that would help retrieve the most relevant API documentation.
-
-Focus on:
-- API endpoints
-- HTTP methods (GET, POST, PUT, DELETE)
-- Authentication
-- Request/Response format
-- Executable code or curl examples
-
-User question:
-{question}
-
-Generate 3–5 search queries:
-"""
-)
-
-
-def build_api_retriever(llm, vectorstore):
+class APIDocumentRetriever:
     """
-    Returns an advanced retriever optimized for API documentation.
+    Custom retriever optimized for API documentation.
+    Avoids MultiQueryRetriever to stay compatible with HF providers.
     """
 
-    base_retriever = vectorstore.as_retriever(
-        search_type="mmr",        # better diversity than similarity
-        search_kwargs={
-            "k": 8,
-            "fetch_k": 20
-        }
-    )
+    def __init__(self, vectorstore):
+        self.retriever = vectorstore.as_retriever(
+            search_type="mmr",
+            search_kwargs={
+                "k": 6,
+                "fetch_k": 20
+            }
+        )
 
-    api_retriever = MultiQueryRetriever.from_llm(
-        retriever=base_retriever,
-        llm=llm,
-        prompt=API_QUERY_PROMPT
-    )
+    def invoke(self, query: str) -> List[Document]:
+        api_boost = (
+            f"{query}\n"
+            "Focus on API endpoint, HTTP method, authentication, "
+            "request body, response schema, curl example, executable code."
+        )
 
-    return api_retriever
+        return self.retriever.invoke(api_boost)
+
+
+def build_api_retriever(vectorstore):
+    return APIDocumentRetriever(vectorstore)

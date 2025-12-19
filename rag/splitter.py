@@ -1,6 +1,6 @@
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 #Splitting the document into chunks for better performance
-def split_docs(docs):
+def split_documents(docs):
     api_separators = [
     "\n## ",
     "\n### ",
@@ -25,6 +25,6 @@ def split_docs(docs):
     separators=api_separators
     )
     
-    chunks=text_splitter(docs)
+    chunks=text_splitter.split_documents(docs)
 
     return chunks

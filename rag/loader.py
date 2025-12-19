@@ -14,3 +14,4 @@ def load_pdf(pdf_dir):
    docs=loader.load()
 
    return docs
+

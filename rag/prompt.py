@@ -1,49 +1,45 @@
-from langchain.messages import SystemMessage, HumanMessage, AIMessage
+from typing import List
+from langchain_core.documents import Document
 
 
-SYSTEM_PROMPT = """
-You are an expert Smart API Assistant.
-
-Rules:
-- Answer ONLY using the provided API documentation context.
-- If executable code, HTTP method, headers, or endpoint are requested,
-  respond with structured and precise information.
-- If the answer is not found in the context, say "I don't know".
-- Do NOT hallucinate endpoints or parameters.
-"""
-
-
-def build_messages(query, retrieved_docs, chat_history):
+def build_messages(
+    query: str,
+    retrieved_docs: List[Document],
+    chat_history: List[str],
+) -> str:
     """
-    query: str
-    retrieved_docs: List[Document]
-    chat_history: List[BaseMessage]
+    Builds a single plain-text prompt.
+    No SystemMessage / HumanMessage / AIMessage.
     """
 
+    # ---- Context from retrieved docs ----
     context = "\n\n".join(
-        [doc.page_content for doc in retrieved_docs]
+        f"[DOC {i+1}]\n{doc.page_content}"
+        for i, doc in enumerate(retrieved_docs)
     )
 
-    messages = []
+    # ---- Chat history (plain text) ----
+    history = "\n".join(chat_history[-6:]) if chat_history else "None"
 
-    # System message
-    messages.append(SystemMessage(content=SYSTEM_PROMPT))
+    prompt = f"""
+You are an expert API documentation assistant.
 
-    # Add previous chat history
-    for msg in chat_history:
-        messages.append(msg)
+Your task:
+- Answer strictly using the provided API documentation
+- Prefer executable examples (curl / Python / JS)
+- Mention HTTP method, endpoint, headers, auth if applicable
+- If information is missing, say: "Not found in documentation"
 
-    # Current user query
-    messages.append(
-        HumanMessage(
-            content=f"""
-Context:
+Chat History:
+{history}
+
+API Documentation:
 {context}
 
 User Question:
 {query}
-"""
-        )
-    )
 
-    return messages
+Answer clearly and concisely:
+"""
+
+    return prompt.strip()
