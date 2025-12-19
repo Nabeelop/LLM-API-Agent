@@ -6,3 +6,4 @@ def create_vectorstore(chunks, embeddings, persist_dir="chroma_db"):
         embedding=embeddings,
         persist_directory=persist_dir
     )
+
