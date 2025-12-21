@@ -6,6 +6,16 @@ from rag.embeddings import get_embeddings
 from rag.vector_store import create_vectorstore
 from rag.retriever import build_api_retriever
 from rag.prompt import build_messages
+from app.sandbox_client import run_code_in_sandbox
+
+def should_execute(code: str) -> bool:
+    return "```python" in code
+
+def extract_code(text: str) -> str:
+    return text.split("```python")[1].split("```")[0]
+
+# after LLM response
+
 
 
 def main():
@@ -51,9 +61,12 @@ def main():
 
         print("\nAgent:\n", response.content, "\n")
 
-        # save history as plain text
-        chat_history.append(f"User: {query}")
-        chat_history.append(f"Agent: {response.content}")
+        if should_execute(response.content):
+            code = extract_code(response.content)
+            result = run_code_in_sandbox(code)
+            print("\nSandbox Output:\n", result)
+      
+
 
 
 if __name__ == "__main__":

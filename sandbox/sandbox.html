@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+</head>
+<body>
+<script>
+  async function runPython(code) {
+    self.pyodide = await loadPyodide();
+    return await pyodide.runPythonAsync(code);
+  }
+
+  self.onmessage = async (e) => {
+    try {
+      const result = await runPython(e.data);
+      self.postMessage({ output: result ?? "OK" });
+    } catch (err) {
+      self.postMessage({ error: err.toString() });
+    }
+  };
+</script>
+</body>
+</html>

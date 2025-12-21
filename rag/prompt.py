@@ -29,6 +29,12 @@ Your task:
 - Prefer executable examples (curl / Python / JS)
 - Mention HTTP method, endpoint, headers, auth if applicable
 - If information is missing, say: "Not found in documentation"
+-Refer to chat history only when asked related questions.
+If executable Python code is required, output it
+inside a fenced code block like this:
+
+```python
+# code here
 
 Chat History:
 {history}
