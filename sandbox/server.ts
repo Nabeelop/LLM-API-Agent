@@ -1,4 +1,7 @@
 import { serve } from "https://deno.land/std/http/server.ts";
+import { formatSandboxOutput } from "./formatOutput.ts";
+
+
 
 
 const html = await Deno.readTextFile("./sandbox/sandbox.html");
@@ -9,22 +12,16 @@ serve(async (req) => {
   }
 
   const { code } = await req.json();
+const result = 
+JSON.stringify(code)
+const cleanOutput = formatSandboxOutput(result);
 
-  const result = `
-    <iframe id="sandbox" style="display:none"></iframe>
-    <script>
-      const iframe = document.getElementById("sandbox");
-      iframe.srcdoc = \`${html}\`;
-      iframe.onload = () => {
-        iframe.contentWindow.postMessage(${JSON.stringify(code)}, "*");
-        window.addEventListener("message", (e) => {
-          document.body.innerText = JSON.stringify(e.data);
-        });
-      };
-    </script>
-  `;
 
-  return new Response(result, {
-    headers: { "Content-Type": "text/html" },
+
+;
+
+
+  return new Response(cleanOutput, {
+    headers: { "Content-Type": "text" },
   });
 }, { port: 8000 });
