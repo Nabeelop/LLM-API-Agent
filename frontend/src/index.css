@@ -1,0 +1,18 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont;
+  background: #0f172a;
+  color: #e5e7eb;
+}
+
+button {
+  cursor: pointer;
+}
+
+input, textarea {
+  font-family: inherit;
+}

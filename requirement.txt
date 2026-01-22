@@ -7,4 +7,5 @@ sentence-transformers
 pypdf
 torch
 transformers
+axios
 huggingface-hub

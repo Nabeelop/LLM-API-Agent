@@ -19,7 +19,14 @@ def build_messages(
     )
 
     # ---- Chat history (plain text) ----
-    history = "\n".join(chat_history[-6:]) if chat_history else "None"
+    if chat_history:
+       history = "\n".join(
+        f"User: {q}\nAgent: {a}"
+        for q, a in chat_history[-6:]
+    )
+    else:
+      history = "None"
+
 
     prompt = f"""
 You are an expert API documentation assistant.

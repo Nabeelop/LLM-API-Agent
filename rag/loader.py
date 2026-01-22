@@ -1,17 +1,13 @@
-from langchain_community.document_loaders import DirectoryLoader,PyMuPDFLoader
+from langchain_community.document_loaders import PyPDFLoader, DirectoryLoader
 
+def load_pdf(path: str):
+    loader = DirectoryLoader(
+        path,
+        glob="**/*.pdf",
+        loader_cls=PyPDFLoader
+    )
+    return loader.load()
 
-#loading data using PyMuPDF and DirectoryLoader
-pdf_dir= "data/pdfs"
-def load_pdf(pdf_dir):
-   
-   loader=DirectoryLoader(
-   path=pdf_dir,
-   glob='*.pdf',
-   loader_cls=PyMuPDFLoader
-   )
-
-   docs=loader.load()
-
-   return docs
-
+def load_single_pdf(file_path: str):
+    loader = PyPDFLoader(file_path)
+    return loader.load()
