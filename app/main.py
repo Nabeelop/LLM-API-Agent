@@ -2,14 +2,14 @@ from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
+from typing import List, Tuple, Optional
 
 from langchain_huggingface import HuggingFaceEndpoint, ChatHuggingFace
 from langchain_chroma import Chroma
 
-from rag.loader import load_pdf, load_single_pdf
+from rag.loader import load_single_pdf
 from rag.splitter import split_documents
 from rag.embeddings import get_embeddings
-from rag.vector_store import create_vectorstore
 from rag.retriever import build_api_retriever
 from rag.prompt import build_messages
 
@@ -19,7 +19,7 @@ app = FastAPI(title="Smart RAG API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173", "http://127.0.0.1:5174"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -30,47 +30,66 @@ UPLOAD_DIR = "data/pdfs"
 VECTOR_DB_DIR = "chroma_db"
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(VECTOR_DB_DIR, exist_ok=True)
 
-# -------------------- Startup RAG Initialization --------------------
+# -------------------- Embeddings --------------------
 
 embeddings = get_embeddings()
 
-docs = load_pdf(UPLOAD_DIR)
-chunks = split_documents(docs)
+# -------------------- Vectorstore (LOAD ONLY) --------------------
+# IMPORTANT: Do NOT re-index on startup
 
-if chunks:
-    print(f"Initializing vectorstore with {len(chunks)} chunks")
-    vectorstore = create_vectorstore(chunks, embeddings)
-else:
-    print("No PDFs found. Creating EMPTY vectorstore.")
-    vectorstore = Chroma(
-        persist_directory=VECTOR_DB_DIR,
-        embedding_function=embeddings
-    )
+vectorstore = Chroma(
+    persist_directory=VECTOR_DB_DIR,
+    embedding_function=embeddings
+)
 
-# -------- LLM --------
+# -------------------- Retriever --------------------
+
+retriever = build_api_retriever(vectorstore)
+
+# -------------------- LLM --------------------
+
 llm = HuggingFaceEndpoint(
     repo_id="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
     task="text_generation",
-    max_new_tokens=2000,
-    temperature=0.2
+    max_new_tokens=1500,
+    temperature=0.2,
 )
 
 chat_model = ChatHuggingFace(llm=llm)
 
-# -------- Retriever --------
-retriever = build_api_retriever(vectorstore)
+# -------------------- Chat History --------------------
+# Trimmed, global (OK for dev)
 
-# -------- Chat History --------
-chat_history: list[tuple[str, str]] = []
+MAX_HISTORY = 5
+chat_history: List[Tuple[str, str]] = []
 
 # -------------------- Helpers --------------------
 
-def should_execute(text: str) -> bool:
-    return "```python" in text
+def clean_response(text: str) -> str:
+    """Remove DeepSeek <think> blocks"""
+    if "<think>" in text:
+        return text.split("</think>")[-1].strip()
+    return text.strip()
 
-def extract_code(text: str) -> str:
-    return text.split("```python")[1].split("```")[0].strip()
+import re
+
+def should_execute(text: str) -> bool:
+    return ("<EXECUTE_PYTHON>" in text and "</EXECUTE_PYTHON>" in text) or ("```python" in text)
+
+def extract_code(text: str) -> Optional[str]:
+    if "<EXECUTE_PYTHON>" in text and "</EXECUTE_PYTHON>" in text:
+        try:
+            return text.split("<EXECUTE_PYTHON>")[1].split("</EXECUTE_PYTHON>")[0].strip()
+        except IndexError:
+            pass
+    
+    match = re.search(r"```python\n(.*?)\n```", text, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+        
+    return None
 
 # -------------------- Schemas --------------------
 
@@ -80,7 +99,7 @@ class AskRequest(BaseModel):
 class AskResponse(BaseModel):
     answer: str
     executable: bool
-    code: str | None = None
+    code: Optional[str] = None
 
 # -------------------- ASK ENDPOINT --------------------
 
@@ -95,18 +114,22 @@ async def ask_llm(payload: AskRequest):
     )
 
     response = chat_model.invoke(prompt)
+    cleaned = clean_response(response.content)
 
     result = {
-        "answer": response.content,
+        "answer": cleaned,
         "executable": False,
         "code": None
     }
 
-    if should_execute(response.content):
-        result["executable"] = True
-        result["code"] = extract_code(response.content)
+    if should_execute(cleaned):
+        code = extract_code(cleaned)
+        if code:
+            result["executable"] = True
+            result["code"] = code
 
-    chat_history.append((payload.query, response.content))
+    chat_history.append((payload.query, cleaned))
+    chat_history[:] = chat_history[-MAX_HISTORY:]
 
     return result
 
@@ -116,21 +139,19 @@ async def ask_llm(payload: AskRequest):
 async def upload_pdf(file: UploadFile = File(...)):
     file_path = os.path.join(UPLOAD_DIR, file.filename)
 
-    # Save PDF
     with open(file_path, "wb") as f:
         f.write(await file.read())
 
-    # Load & split ONLY this PDF
     docs = load_single_pdf(file_path)
     chunks = split_documents(docs)
 
     if not chunks:
         return {"message": "PDF uploaded but no text extracted"}
 
-    vectorstore.add_documents(chunks)
-    vectorstore.persist()
+    vectorstore.add_documents(chunks)   # <-- auto-persist
 
     return {
         "message": "PDF uploaded and indexed successfully",
-        "filename": file.filename
+        "filename": file.filename,
+        "chunks_added": len(chunks)
     }

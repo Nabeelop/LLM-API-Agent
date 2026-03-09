@@ -11,7 +11,7 @@ serve(async (req) => {
     return new Response("POST only", { status: 405 });
   }
 
-  const { code } = await req.json();
+const { code } = await req.json();
 const result = 
 JSON.stringify(code)
 const cleanOutput = formatSandboxOutput(result);

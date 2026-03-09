@@ -1,15 +1,21 @@
-import TopBar from "./components/TopBar";
-import Sidebar from "./components/SideBar";
-import ChatWindow from "./components/ChatWindow";
+import { AppLayout } from './components/layout/AppLayout';
+import { Sidebar } from './components/sidebar/Sidebar';
+import { ChatPanel } from './components/chat/ChatPanel';
+import { SandboxPanel } from './components/sandbox/SandboxPanel';
+import { AppProvider } from './context/AppContext';
+import { Toaster } from './components/ui/sonner';
 
-export default function App() {
+function App() {
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
-      <TopBar />
-      <div style={{ flex: 1, display: "flex" }}>
-        <Sidebar />
-        <ChatWindow />
-      </div>
-    </div>
+    <AppProvider>
+      <AppLayout 
+        sidebar={<Sidebar />}
+        chat={<ChatPanel />}
+        sandbox={<SandboxPanel />}
+      />
+      <Toaster theme="dark" position="top-center" />
+    </AppProvider>
   );
 }
+
+export default App;

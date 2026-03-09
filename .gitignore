@@ -1,14 +1,17 @@
 # Python
 __pycache__/
-.env
-.venv/
+*.py[cod]
+*$py.class
 venv/
+.env
 
-# Vector DB
+# ChromaDB
 chroma_db/
+data/
 
-# PDFs (optional)
-data/pdfs/*.pdf
-
-# OS
+# Frontend
+node_modules/
+dist/
+dist-ssr/
+.local/
 .DS_Store
