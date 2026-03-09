@@ -6,6 +6,7 @@ import { Copy, RefreshCw, Send, MessageSquare } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { BackendAPI } from '../../api/client';
 import { toast } from 'sonner';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 export const ChatPanel: FC = () => {
   const { messages, addMessage, isGenerating, setIsGenerating, setActiveCode, addTerminalLog } = useAppContext();
@@ -100,17 +101,34 @@ export const ChatPanel: FC = () => {
                    </div>
                    
                    {/* Hover Actions */}
-                   <div className="absolute -bottom-6 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
-                     <button 
-                       onClick={() => handleCopy(msg.content)}
-                       className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors"
-                     >
-                       <Copy className="w-3 h-3" /> Copy
-                     </button>
-                     <button className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors">
-                       <RefreshCw className="w-3 h-3" /> Regenerate
-                     </button>
-                   </div>
+                   <TooltipProvider delayDuration={200}>
+                     <div className="absolute -bottom-6 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
+                       <Tooltip>
+                         <TooltipTrigger asChild>
+                           <button 
+                             onClick={() => handleCopy(msg.content)}
+                             className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                           >
+                             <Copy className="w-3 h-3" /> Copy
+                           </button>
+                         </TooltipTrigger>
+                         <TooltipContent side="bottom" className="text-xs">
+                           <p>Copy text</p>
+                         </TooltipContent>
+                       </Tooltip>
+
+                       <Tooltip>
+                         <TooltipTrigger asChild>
+                           <button className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors">
+                             <RefreshCw className="w-3 h-3" /> Regenerate
+                           </button>
+                         </TooltipTrigger>
+                         <TooltipContent side="bottom" className="text-xs">
+                           <p>Retry message</p>
+                         </TooltipContent>
+                       </Tooltip>
+                     </div>
+                   </TooltipProvider>
                  </div>
               </div>
             )}

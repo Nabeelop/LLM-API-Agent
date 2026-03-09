@@ -2,6 +2,7 @@ import { FC } from 'react';
 import Editor from '@monaco-editor/react';
 import { Play, Terminal, Trash2 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 export const SandboxPanel: FC = () => {
   const { activeCode, setActiveCode, terminalLogs, addTerminalLog, clearTerminal } = useAppContext();
@@ -55,16 +56,26 @@ export const SandboxPanel: FC = () => {
 
       {/* Terminal View */}
       <div className="h-[30%] bg-[#0d1117] border-t border-slate-800 flex flex-col">
+
           <div className="flex items-center justify-between px-4 py-2 border-b border-slate-800/50 bg-[#161b22]">
             <div className="flex items-center gap-2 text-slate-400 text-xs font-mono">
               <Terminal className="w-3.5 h-3.5" /> Output
             </div>
-            <button 
-              onClick={clearTerminal}
-              className="text-slate-500 hover:text-slate-300 transition-colors" title="Clear console"
-            >
-               <Trash2 className="w-3.5 h-3.5" />
-            </button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button 
+                    onClick={clearTerminal}
+                    className="text-slate-500 hover:text-slate-300 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>Clear Console</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
           <div className="flex-1 p-4 font-mono text-sm overflow-y-auto text-slate-300 space-y-1">
              {terminalLogs.length === 0 && (

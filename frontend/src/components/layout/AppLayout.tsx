@@ -9,12 +9,17 @@ interface AppLayoutProps {
 
 export const AppLayout: FC<AppLayoutProps> = ({ sidebar, chat, sandbox }) => {
   return (
-    <div className="h-screen w-screen bg-slate-950 text-slate-200 overflow-hidden flex">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.6, ease: 'easeOut' }}
+      className="h-screen w-screen bg-slate-950 text-slate-200 overflow-hidden flex"
+    >
       {/* Sidebar: Fixed width */}
       <motion.div 
         initial={{ width: 0, opacity: 0 }}
         animate={{ width: 280, opacity: 1 }}
-        transition={{ duration: 0.3, ease: 'easeInOut' }}
+        transition={{ duration: 0.4, ease: 'easeInOut', delay: 0.2 }}
         className="flex-shrink-0 border-r border-slate-800 bg-slate-900"
       >
         {sidebar}
@@ -26,9 +31,14 @@ export const AppLayout: FC<AppLayoutProps> = ({ sidebar, chat, sandbox }) => {
       </main>
 
       {/* Right Sandbox Panel: Fixed width */}
-      <aside className="w-[500px] xl:w-[600px] flex-shrink-0 border-l border-slate-800 bg-slate-900">
+      <motion.aside 
+        initial={{ x: 50, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ duration: 0.4, ease: 'easeOut', delay: 0.3 }}
+        className="w-[500px] xl:w-[600px] flex-shrink-0 border-l border-slate-800 bg-slate-900"
+      >
         {sandbox}
-      </aside>
-    </div>
+      </motion.aside>
+    </motion.div>
   );
 };
