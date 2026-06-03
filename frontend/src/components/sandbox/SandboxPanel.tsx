@@ -1,18 +1,37 @@
-import { FC } from 'react';
+import { FC, useState } from 'react';
 import Editor from '@monaco-editor/react';
 import { Play, Terminal, Trash2 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import { BackendAPI } from '../../api/client';
+import { toast } from 'sonner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 export const SandboxPanel: FC = () => {
   const { activeCode, setActiveCode, terminalLogs, addTerminalLog, clearTerminal } = useAppContext();
+  const [isRunning, setIsRunning] = useState(false);
 
-  const handleRun = () => {
-    addTerminalLog('> Executing Python script via Sandbox environment...');
-    setTimeout(() => {
-      addTerminalLog('Successfully parsed syntax tree.');
-      addTerminalLog('Runtime OK. Awaiting actual backend evaluation hooks for Phase 4.');
-    }, 800);
+  const handleRun = async () => {
+    if (!activeCode.trim()) {
+      addTerminalLog('> No code to execute.');
+      return;
+    }
+
+    setIsRunning(true);
+    addTerminalLog('> Executing Python script...');
+    try {
+      const response = await BackendAPI.executeCode(activeCode);
+      if (response.output.trim()) {
+        const lines = response.output.split('\n');
+        lines.forEach(line => { if (line !== '') addTerminalLog(line); });
+      } else {
+        addTerminalLog('> Done. (No output)');
+      }
+    } catch (error) {
+      addTerminalLog('> Error: Failed to reach execution backend.');
+      toast.error('Sandbox execution failed.');
+    } finally {
+      setIsRunning(false);
+    }
   };
 
   return (
@@ -25,10 +44,12 @@ export const SandboxPanel: FC = () => {
          </div>
          <button 
           onClick={handleRun}
-          className="flex items-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border border-emerald-500/20"
+          disabled={isRunning}
+          className="flex items-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed text-emerald-500 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border border-emerald-500/20"
          >
-           <Play className="w-4 h-4" /> Run 
-           <span className="opacity-50 text-[10px] ml-1">(⌘+Enter)</span>
+           <Play className={`w-4 h-4 ${isRunning ? 'animate-pulse' : ''}`} />
+           {isRunning ? 'Running...' : 'Run'}
+           {!isRunning && <span className="opacity-50 text-[10px] ml-1">(⌘+Enter)</span>}
          </button>
       </div>
 

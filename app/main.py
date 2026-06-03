@@ -2,6 +2,9 @@ from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
+import sys
+import io
+import traceback
 from typing import List, Tuple, Optional
 
 from langchain_huggingface import HuggingFaceEndpoint, ChatHuggingFace
@@ -101,6 +104,12 @@ class AskResponse(BaseModel):
     executable: bool
     code: Optional[str] = None
 
+class ExecuteRequest(BaseModel):
+    code: str
+
+class ExecuteResponse(BaseModel):
+    output: str
+
 # -------------------- ASK ENDPOINT --------------------
 
 @app.post("/ask", response_model=AskResponse)
@@ -155,3 +164,21 @@ async def upload_pdf(file: UploadFile = File(...)):
         "filename": file.filename,
         "chunks_added": len(chunks)
     }
+
+# -------------------- EXECUTE ENDPOINT --------------------
+
+@app.post("/execute", response_model=ExecuteResponse)
+async def execute_code(payload: ExecuteRequest):
+    old_stdout = sys.stdout
+    redirected_output = sys.stdout = io.StringIO()
+    
+    try:
+        exec_globals = {}
+        exec(payload.code, exec_globals)
+        output = redirected_output.getvalue()
+    except Exception as e:
+        output = redirected_output.getvalue() + "\n" + traceback.format_exc()
+    finally:
+        sys.stdout = old_stdout
+        
+    return {"output": output}

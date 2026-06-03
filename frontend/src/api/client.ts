@@ -3,7 +3,7 @@ import axios from 'axios';
 // The centralized axios client pointing to the FastAPI backend running on localhost:8000
 const apiClient = axios.create({
   baseURL: 'http://localhost:8000',
-  timeout: 30000, 
+  timeout: 120000, 
 });
 
 export interface AskResponse {
@@ -31,6 +31,11 @@ export const BackendAPI = {
       },
       onUploadProgress,
     });
+    return data;
+  },
+
+  executeCode: async (code: string): Promise<{ output: string }> => {
+    const { data } = await apiClient.post<{ output: string }>('/execute', { code });
     return data;
   },
 };
