@@ -1,6 +1,6 @@
 # 🤖 LLM API Agent
 
-A full-stack RAG (Retrieval-Augmented Generation) application that lets you upload API documentation PDFs, ask natural language questions about them, and execute Python code snippets in an interactive sandbox — all powered by a HuggingFace LLM.
+An autonomous RAG-powered agent that reads unstructured API documentation and generates functional Python integration scripts — with a secure in-browser execution sandbox.
 
 ---
 
@@ -8,11 +8,12 @@ A full-stack RAG (Retrieval-Augmented Generation) application that lets you uplo
 
 | Feature | Description |
 |---|---|
-| 📄 PDF Ingestion | Upload API docs and index them into a local vector store |
-| 💬 RAG Chat | Ask questions — the LLM answers using only your uploaded docs as context |
-| 🐍 Code Sandbox | AI-generated or manually written Python code is executed live on the backend |
-| 🧠 Chat History | Last 5 exchanges are kept in context for multi-turn conversations |
-| ⚡ Real-time UI | React + Vite frontend with Monaco editor, animated typing indicator, and toast notifications |
+| 🤖 Autonomous Script Generation | Generates ready-to-run Python integration scripts from API docs |
+| 📄 PDF Ingestion | Upload API docs and index them into a ChromaDB vector store |
+| 🧠 MMR Retriever (λ=0.7) | API-aware regex splitting + Jaccard dedup reduces context redundancy |
+| 🔒 Secure WASM Sandbox | Pyodide-powered in-browser Python execution with import blocking and timeouts |
+| 💬 Multi-turn Chat | Last 5 exchanges kept in context for conversational follow-ups |
+| ⚡ Modular FastAPI Backend | Separate routers, response-time middleware, health endpoint |
 
 ---
 
@@ -21,23 +22,30 @@ A full-stack RAG (Retrieval-Augmented Generation) application that lets you uplo
 ```
 LLM API Agent/
 ├── app/
-│   └── main.py            # FastAPI backend — /ask, /upload, /execute endpoints
+│   ├── main.py              # FastAPI app factory (CORS, middleware, router mounting)
+│   ├── dependencies.py      # Shared singletons (vector store, LLM, retriever)
+│   ├── sandbox.py           # Secure code execution (AST validation, resource limits)
+│   └── routes/
+│       ├── ask.py           # POST /ask — RAG-powered Q&A with code extraction
+│       ├── upload.py        # POST /upload — async PDF ingestion
+│       ├── execute.py       # POST /execute — sandboxed code execution
+│       └── health.py        # GET /health — system status & metadata
 ├── rag/
-│   ├── loader.py          # PDF loading via PyPDFLoader
-│   ├── splitter.py        # API-aware recursive text splitter
-│   ├── embeddings.py      # HuggingFace sentence-transformers embeddings
-│   ├── retriever.py       # Chroma vector store retriever
-│   └── prompt.py          # Prompt builder (chat history + retrieved docs)
-├── chroma_db/             # Persisted vector store (auto-created)
-├── data/pdfs/             # Uploaded PDF storage (auto-created)
+│   ├── loader.py            # PDF loading via PyPDFLoader
+│   ├── splitter.py          # API-aware regex text splitter
+│   ├── embeddings.py        # HuggingFace sentence-transformer embeddings
+│   ├── retriever.py         # MMR retriever (λ=0.7) + Jaccard deduplication
+│   └── prompt.py            # Autonomous agent prompt builder
+├── chroma_db/               # Persisted vector store (auto-created)
+├── data/pdfs/               # Uploaded PDF storage (auto-created)
 └── frontend/
     └── src/
-        ├── api/client.ts          # Axios API client
-        ├── context/AppContext.tsx # Global state
+        ├── api/client.ts           # Axios API client
+        ├── context/AppContext.tsx   # Global state
         └── components/
-            ├── sidebar/           # Document upload panel
-            ├── chat/              # Chat interface
-            └── sandbox/           # Python REPL sandbox
+            ├── sidebar/            # Document upload panel
+            ├── chat/               # Chat interface
+            └── sandbox/            # Pyodide WASM sandbox with Monaco editor
 ```
 
 ---
@@ -55,12 +63,10 @@ LLM API Agent/
 ### 1. Clone & Set Up Python Environment
 
 ```bash
-# Create and activate a virtual environment
 python -m venv myenv
 .\myenv\Scripts\activate        # Windows
 # source myenv/bin/activate     # macOS/Linux
 
-# Install Python dependencies
 pip install -r requirement.txt
 ```
 
@@ -72,23 +78,20 @@ Create a `.env` file in the project root:
 HUGGINGFACEHUB_API_TOKEN=hf_your_token_here
 ```
 
-> The backend uses the HuggingFace Inference API. Make sure your token has read access.
-
 ### 3. Start the Backend
 
 ```bash
-# From the project root (with venv activated)
 uvicorn app.main:app --reload --port 8000
 ```
 
-The API will be available at `http://localhost:8000`  
+The API will be available at `http://localhost:8000`
 Interactive docs: `http://localhost:8000/docs`
 
 ### 4. Start the Frontend
 
 ```bash
 cd frontend
-npm install     # first time only
+npm install
 npm run dev
 ```
 
@@ -98,23 +101,28 @@ The UI will be available at `http://localhost:5173`
 
 ## 📡 API Reference
 
+### `POST /ask`
+Ask a question using RAG over your uploaded documents.
+
+- **Body**: `{ "query": "How do I authenticate with this API?", "session_id": "optional" }`
+- **Returns**: `{ answer, executable, code? }`
+
 ### `POST /upload`
-Upload and index a PDF file into the vector store.
+Upload and index a PDF into the vector store (async processing).
 
 - **Body**: `multipart/form-data` with a `file` field
 - **Returns**: `{ message, filename, chunks_added }`
 
-### `POST /ask`
-Ask a question using RAG over your uploaded documents.
-
-- **Body**: `{ "query": "How do I authenticate with the Kite API?" }`
-- **Returns**: `{ answer, executable, code? }`
-
 ### `POST /execute`
-Execute arbitrary Python code and capture its stdout.
+Execute Python code through the secure sandbox.
 
 - **Body**: `{ "code": "print('Hello!')" }`
-- **Returns**: `{ "output": "Hello!\n" }`
+- **Returns**: `{ output, blocked, blocked_reason? }`
+
+### `GET /health`
+System status and metadata.
+
+- **Returns**: `{ status, uptime_seconds, vectorstore_documents, model, embeddings, sandbox }`
 
 ---
 
@@ -124,72 +132,55 @@ Execute arbitrary Python code and capture its stdout.
 User Query
     │
     ▼
-Chroma Vector Store ──► Top-K Retrieved Chunks
-    │                           │
-    └───────────────────────────┘
-                │
-                ▼
-        build_messages()
-    (system prompt + history + context + query)
-                │
-                ▼
-    HuggingFace LLM (DeepSeek-R1-Distill)
-                │
-                ▼
-    clean_response() ──► strip <think> blocks
-                │
-                ▼
-    extract_code() ──► if code found, sent to Sandbox
+Chroma Vector Store ──► MMR Retriever (λ=0.7, k=4, fetch_k=10)
+                              │
+                              ▼
+                    Jaccard Deduplication (threshold=0.70)
+                              │
+                              ▼
+                    build_messages()
+              (system prompt + history + context + query)
+                              │
+                              ▼
+              HuggingFace LLM (DeepSeek-R1-Distill-Llama-8B)
+                              │
+                              ▼
+              clean_response() ──► strip <think> blocks
+                              │
+                              ▼
+              extract_code() ──► if code found, sent to Sandbox
 ```
 
 ---
 
-## 🔧 Configuration
+## 🔒 Sandbox Security
 
-| Variable | Default | Description |
-|---|---|---|
-| `HUGGINGFACEHUB_API_TOKEN` | — | **Required.** Your HuggingFace token |
-| Backend port | `8000` | Set via `--port` flag in uvicorn |
-| Frontend port | `5173` | Set by Vite (auto-increments if busy) |
-| `MAX_HISTORY` | `5` | Number of past exchanges kept in context |
-| `chunk_size` | `500` | Characters per document chunk |
-| `chunk_overlap` | `100` | Overlap between consecutive chunks |
-| `max_new_tokens` | `1500` | Max tokens the LLM can generate per response |
+The execution sandbox operates at two levels:
+
+| Layer | Mechanism |
+|---|---|
+| **Frontend (Pyodide)** | WebAssembly isolation — no real filesystem/network access |
+| **Backend (subprocess)** | AST-based import blocking, CPU timeout, env sanitization, temp dir isolation |
+
+**Blocked imports**: `os`, `sys`, `subprocess`, `shutil`, `socket`, `http`, `ctypes`, `importlib`, `signal`, `multiprocessing`, `threading`, `pickle`, and more.
 
 ---
 
 ## 📦 Tech Stack
 
 **Backend**
-- [FastAPI](https://fastapi.tiangolo.com/) — API framework
+- [FastAPI](https://fastapi.tiangolo.com/) — Modular API framework with routers
 - [LangChain](https://www.langchain.com/) — RAG orchestration
 - [ChromaDB](https://www.trychroma.com/) — Local vector store
-- [HuggingFace](https://huggingface.co/) — LLM & embeddings (`DeepSeek-R1-Distill-Qwen-1.5B`, `all-MiniLM-L6-v2`)
-- [pypdf](https://pypi.org/project/pypdf/) — PDF parsing
+- [HuggingFace](https://huggingface.co/) — LLM & embeddings (`DeepSeek-R1-Distill-Llama-8B`, `bge-small-en-v1.5`)
 
 **Frontend**
 - [React 18](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
 - [Vite](https://vitejs.dev/) — Build tool
+- [Pyodide](https://pyodide.org/) — In-browser Python (WebAssembly)
 - [Monaco Editor](https://microsoft.github.io/monaco-editor/) — VS Code-style code editor
 - [Framer Motion](https://www.framer.com/motion/) — Animations
 - [Tailwind CSS](https://tailwindcss.com/) — Styling
-- [Sonner](https://sonner.emilkowal.ski/) — Toast notifications
-
----
-
-## 🐛 Troubleshooting
-
-**`Could not reach the backend API`**  
-→ Make sure `uvicorn` is running on port 8000. Check for port conflicts with `netstat -ano | findstr :8000`.
-
-**`PDF uploaded but no text extracted`**  
-→ The PDF may be image-based (scanned). Try a text-selectable PDF instead.
-
-**Sandbox returns no output**  
-→ Ensure your code uses `print()` — `exec()` captures stdout only.
-
-**LLM responses are slow**  
-→ The HuggingFace Inference API can be slow on free tier. The frontend timeout is set to 2 minutes.
 
 ---
 

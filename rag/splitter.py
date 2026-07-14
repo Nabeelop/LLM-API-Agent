@@ -27,8 +27,8 @@ def split_documents(docs):
     ]
 
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=500,
-        chunk_overlap=100,
+        chunk_size=1200,
+        chunk_overlap=200,
         separators=api_separators,
         is_separator_regex=True,
     )

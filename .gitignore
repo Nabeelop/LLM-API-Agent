@@ -2,16 +2,29 @@
 __pycache__/
 *.py[cod]
 *$py.class
+myenv/
 venv/
 .env
 
 # ChromaDB
 chroma_db/
+
+# Data
 data/
 
 # Frontend
 node_modules/
 dist/
 dist-ssr/
-.local/
+*.local
+*.log
+
+# Editor / OS
+.vscode/
+.idea/
 .DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
