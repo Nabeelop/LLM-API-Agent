@@ -5,7 +5,9 @@ session state so that route modules import from a single place.
 """
 
 import os
-from typing import List, Tuple
+
+from dotenv import load_dotenv
+load_dotenv()
 
 from langchain_huggingface import HuggingFaceEndpoint, ChatHuggingFace
 from langchain_chroma import Chroma
@@ -34,22 +36,30 @@ vectorstore = Chroma(
 
 retriever = build_api_retriever(vectorstore)
 
+
+def rebuild_retriever():
+    """Rebuild the retriever from the current vectorstore state.
+
+    Call this after adding new documents so the live singleton reflects
+    the updated index — avoids the stale-retriever bug after uploads.
+    """
+    global retriever
+    retriever = build_api_retriever(vectorstore)
+    return retriever
+
 # ─── LLM ─────────────────────────────────────────────────────────────
 
 llm = HuggingFaceEndpoint(
     repo_id="deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
     task="text_generation",
-    max_new_tokens=800,
+    max_new_tokens=2048,  # Increased to prevent response cutoff
     temperature=0.3,
     repetition_penalty=1.3,
 )
 
 chat_model = ChatHuggingFace(llm=llm)
 
-# ─── Session History ─────────────────────────────────────────────────
-
 MAX_HISTORY = 5
-session_histories: dict[str, List[Tuple[str, str]]] = {}
 
 
 # ─── Accessor Functions ─────────────────────────────────────────────
@@ -60,8 +70,14 @@ def get_vectorstore():
 def get_retriever():
     return retriever
 
+
+def get_rebuild_retriever():
+    """Accessor for the rebuild function (for use in route modules)."""
+    return rebuild_retriever
+
 def get_chat_model():
     return chat_model
 
 def get_session_histories():
-    return session_histories
+    from app.session_store import get_sessions
+    return get_sessions()

@@ -5,7 +5,7 @@ import hashlib
 import asyncio
 from fastapi import APIRouter, UploadFile, File
 
-from app.dependencies import get_vectorstore, UPLOAD_DIR
+from app.dependencies import get_vectorstore, UPLOAD_DIR, rebuild_retriever
 from rag.loader import load_single_pdf
 from rag.splitter import split_documents
 
@@ -30,6 +30,10 @@ def _process_pdf(file_path: str, filename: str, vectorstore):
         ids.append(chunk_id)
 
     vectorstore.add_documents(chunks, ids=ids)
+
+    # Rebuild the live retriever singleton so subsequent /ask queries
+    # immediately see the newly indexed documents.
+    rebuild_retriever()
 
     return {
         "message": "PDF uploaded and indexed successfully",
