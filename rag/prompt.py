@@ -15,6 +15,7 @@ Output Standards:
 - Include placeholder variables (e.g. `API_KEY = "your_api_key_here"`) for credentials.
 - Add inline comments explaining each API call, its parameters, and expected response.
 - Handle HTTP errors with try/except and status code checks.
+- CRITICAL: All code inside <EXECUTE_PYTHON> tags MUST start at column 0 (no leading indentation). Only indent inside function/class bodies as normal Python.
 
 Example:
 Context:
@@ -36,23 +37,17 @@ BASE_URL = "https://api.example.com"
 USERNAME = "your_username_here"
 PASSWORD = "your_password_here"
 
-def authenticate(username, password):
-    \"\"\"Authenticate with the API and return a bearer token.\"\"\"
-    url = f"{BASE_URL}/api/v1/auth/token"
-    payload = {"username": username, "password": password}
-    headers = {"Content-Type": "application/json"}
+url = f"{BASE_URL}/api/v1/auth/token"
+payload = {"username": USERNAME, "password": PASSWORD}
+headers = {"Content-Type": "application/json"}
 
-    try:
-        response = requests.post(url, json=payload, headers=headers)
-        response.raise_for_status()
-        data = response.json()
-        print(f"Authenticated successfully. Token: {data['access_token'][:20]}...")
-        return data["access_token"]
-    except requests.exceptions.HTTPError as e:
-        print(f"Authentication failed: {e}")
-        return None
-
-token = authenticate(USERNAME, PASSWORD)
+try:
+    response = requests.post(url, json=payload, headers=headers)
+    response.raise_for_status()
+    data = response.json()
+    print(f"Authenticated successfully. Token: {data['access_token'][:20]}...")
+except requests.exceptions.HTTPError as e:
+    print(f"Authentication failed: {e}")
 </EXECUTE_PYTHON>"""
 
     context = "\n\n".join(

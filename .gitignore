@@ -19,6 +19,14 @@ dist-ssr/
 *.local
 *.log
 
+# Debug / ad-hoc scripts (not part of the project)
+debug_*.py
+test_ask_loop.py
+test_self_correction.py
+view_attempts*.py
+*_response.json
+debug_trace.txt
+
 # Editor / OS
 .vscode/
 .idea/
